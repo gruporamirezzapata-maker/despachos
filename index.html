@@ -412,7 +412,7 @@ function listaGuias(filas){
     box.appendChild(el("div",{class:"g"+(f.vencida?" late":"")},[
       el("div",{class:"g-top"},[el("b",{text:f.guia}),el("span",{text:f.transp+" · "+f.dias+" d"})]),
       el("p",{class:"g-dest",text:f.dest+" · "+f.tipo}),
-      el("p",null,[f.prod,f.vencida?el("span",{class:"tag t-bad",text:" · pasó 48 h"}):null,f.sinAceptar?el("span",{class:"tag t-warn",text:" · sin aceptar"}):null])
+      el("p",null,[f.prod,f.vencida?el("span",{class:"tag t-bad",text:" · pasó 48 h"}):null])
     ]));
   });
   return box;
@@ -435,7 +435,6 @@ function pintar(){
     b0.onclick=function(){imagen(g)};b1.onclick=function(){bajarProveedor(g)};b2.onclick=function(){copiar(g,ta)};
     var sub=g.filas.length+(g.filas.length===1?" guía":" guías")+" · desde el "+corta(g.antiguo);
     if(g.vencidas)sub+=" · "+g.vencidas+" pasaron 48 h";
-    if(g.sinAceptar)sub+=" · "+g.sinAceptar+" sin aceptar";
     var it=el("details",{class:"row"},[
       el("summary",null,[el("span",{class:"num",text:String(i+1).padStart(2,"0")}),el("span",{class:"dot i-"+(nv==="ok"?"ok":nv==="warn"?"warn":"bad")}),
         el("div",{class:"grow"},[el("div",{class:"name",text:g.nombre}),el("div",{class:"sub2",text:sub})]),

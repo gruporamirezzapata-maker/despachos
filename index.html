@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f2f2f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Despachos">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Despachos</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23007aff'/%3E%3Cpath d='M25 38l25-12 25 12v26L50 76 25 64z' fill='none' stroke='white' stroke-width='6' stroke-linejoin='round'/%3E%3Cpath d='M25 38l25 12 25-12M50 50v26' fill='none' stroke='white' stroke-width='6' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+
+:root{
+  --bg:#f2f2f7;--card:#ffffff;--card2:#f2f2f7;--label:#000000;--label2:rgba(60,60,67,.6);--label3:rgba(60,60,67,.3);
+  --sep:rgba(60,60,67,.18);--blue:#007aff;--green:#34c759;--yellow:#ffcc00;--orange:#ff9500;--red:#ff3b30;--gray:#8e8e93;
+  --fill:rgba(120,120,128,.12);--bar:rgba(242,242,247,.72);--tint:rgba(0,122,255,.1);--shadow:0 1px 2px rgba(0,0,0,.04)
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--label);font:17px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
+.num{font-family:ui-rounded,-apple-system,"SF Pro Rounded","Inter",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.bar{position:sticky;top:0;z-index:5;background:var(--bar);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--sep)}
+.bar-in{max-width:720px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px}
+.bar-t{font-weight:600;font-size:17px;opacity:0;transition:opacity .2s}
+.scrolled .bar-t{opacity:1}
+.wrap{max-width:720px;margin:0 auto;padding:6px 16px 64px}
+h1{font-size:34px;line-height:1.1;font-weight:700;letter-spacing:-.025em;margin:8px 0 2px}
+.date{color:var(--label2);font-size:15px;margin:0 0 20px}
+button{font:inherit;cursor:pointer;border:0;border-radius:999px;padding:9px 16px;min-height:36px;font-weight:600;font-size:15px;letter-spacing:-.01em;transition:transform .12s ease,opacity .12s ease}
+button:active:not(:disabled){transform:scale(.97);opacity:.8}
+button:disabled{opacity:.4;cursor:default}
+.b-fill{background:var(--blue);color:#fff}
+.b-tint{background:var(--tint);color:var(--blue)}
+.b-gray{background:var(--fill);color:var(--label)}
+.b-big{width:100%;min-height:50px;font-size:17px;border-radius:14px}
+.b-text{background:none;color:var(--blue);padding:6px 4px;font-weight:400;font-size:17px}
+#status{color:var(--label2);font-size:13px;text-align:center;margin:10px 0 0;min-height:18px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--label3);border-top-color:var(--label2);border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0 8px}
+.tile{background:var(--card);border-radius:16px;padding:14px 14px 12px;box-shadow:var(--shadow)}
+.tile b{display:block;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.05}
+.tile span{display:block;color:var(--label2);font-size:13px;margin-top:4px}
+.tile.hot b{color:var(--red)}
+.sh{color:var(--label2);font-size:13px;text-transform:uppercase;letter-spacing:.02em;margin:28px 16px 7px}
+.sf{color:var(--label2);font-size:13px;margin:7px 16px 0;line-height:1.4}
+.group{background:var(--card);border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+.cell{display:flex;align-items:center;gap:12px;padding:11px 16px;min-height:44px;position:relative}
+.cell+.cell:before,.item+.item:before{content:"";position:absolute;left:16px;right:0;top:0;border-top:.5px solid var(--sep)}
+.cell .grow{flex:1;min-width:0}
+.item{position:relative}
+.item>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:12px 16px;min-height:60px}
+.item>summary::-webkit-details-marker{display:none}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.d-g{background:var(--green)}.d-y{background:var(--yellow)}.d-o{background:var(--orange)}.d-r{background:var(--red)}.d-n{background:var(--gray)}
+.name{font-size:17px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{font-size:15px;color:var(--label2);margin-top:1px}
+.pill{flex:none;font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px}
+.p-g{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+.p-y{background:color-mix(in srgb,var(--yellow) 22%,transparent);color:color-mix(in srgb,var(--yellow) 60%,var(--label))}
+.p-o{background:color-mix(in srgb,var(--orange) 16%,transparent);color:var(--orange)}
+.p-r{background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red)}
+.p-n{background:var(--fill);color:var(--label2)}
+.chev{flex:none;width:8px;height:8px;border-right:2px solid var(--label3);border-bottom:2px solid var(--label3);transform:rotate(-45deg);margin:0 2px 0 4px;transition:transform .2s}
+.item[open] .chev{transform:rotate(45deg)}
+.body{padding:0 16px 16px 38px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:2px 0 12px}
+.msgbox{background:var(--card2);border-radius:12px;padding:12px 14px;font-size:15px;line-height:1.45;white-space:pre-wrap}
+.msglbl{font-size:13px;color:var(--label2);margin:0 0 6px}
+textarea{width:100%;min-height:150px;font:inherit;font-size:15px;line-height:1.45;color:var(--label);background:var(--card2);border:0;border-radius:12px;padding:12px 14px;resize:vertical;outline:none}
+textarea:focus{box-shadow:0 0 0 3px var(--tint)}
+.rows{margin-top:12px;border-radius:12px;background:var(--card2);overflow:hidden}
+.r{padding:10px 14px;position:relative}
+.r+.r:before{content:"";position:absolute;left:14px;right:0;top:0;border-top:.5px solid var(--sep)}
+.r-top{display:flex;justify-content:space-between;gap:10px;font-size:15px}
+.r-top .g{font-weight:600}
+.r-top .d{color:var(--label2);white-space:nowrap}
+.r-p{font-size:13px;color:var(--label2);margin-top:2px}
+.flag{color:var(--orange);font-weight:600}
+.banner{display:flex;gap:12px;align-items:flex-start;background:var(--card);border-radius:12px;padding:12px 16px;margin:12px 0;box-shadow:var(--shadow);font-size:15px}
+.banner .ic{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff}
+.ic-o{background:var(--orange)}.ic-r{background:var(--red)}.ic-g{background:var(--green)}.ic-b{background:var(--blue)}
+.empty{text-align:center;color:var(--label2);padding:40px 0}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);opacity:0;background:rgba(30,30,30,.86);color:#fff;font-size:15px;font-weight:500;padding:10px 18px;border-radius:999px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transition:all .25s;pointer-events:none;z-index:9}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@media (max-width:420px){.tile b{font-size:26px}.body{padding-left:16px}}
+
+body{padding-bottom:env(safe-area-inset-bottom)}
+</style>
+</head>
+<body>
+<div class="bar" id="bar"><div class="bar-in"><span class="bar-t">Despachos</span><button class="b-text" id="go2" hidden>Actualizar</button></div></div>
+<div class="wrap">
+  <h1>Despachos</h1>
+  <p class="date" id="fecha">Hoy</p>
+  <button class="b-fill b-big" id="go">Traer despachos pendientes</button>
+  <div id="status"></div>
+  <div id="out"></div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+(function(){
+var API="https://sebas777.app.n8n.cloud/webhook/despachos-datos";
+var PLANTILLA="Hola {proveedor}, buen día.\nTenemos {n} guías pendientes por despachar. La más antigua es del {antiguo} ({dias} días).\nTe envío la lista con guía, transportadora y productos.\nPor favor confírmame cuáles salen hoy y si alguna no la puedes surtir.\nGracias.";
+var $=function(i){return document.getElementById(i)};
+var st=$("status"), out=$("out"), go=$("go"), go2=$("go2");
+var state=null;
+var MESES=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+var MESL=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+var DIAS_SEM=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+
+// Clave: llega en el enlace (#k=...) y se recuerda en este dispositivo.
+function leerClave(){
+  var m=(location.hash||"").match(/k=([^&]+)/), k=m?decodeURIComponent(m[1]):"";
+  try{ if(k) localStorage.setItem("despachos_k",k); else k=localStorage.getItem("despachos_k")||""; }catch(e){}
+  return k;
+}
+var CLAVE=leerClave();
+
+function el(tag,props,kids){var e=document.createElement(tag);if(props)for(var k in props){if(k==="text")e.textContent=props[k];else if(k==="class")e.className=props[k];else e.setAttribute(k,props[k]);}(kids||[]).forEach(function(c){if(c!=null)e.appendChild(typeof c==="string"?document.createTextNode(c):c)});return e}
+function toast(t){var x=$("toast");x.textContent=t;x.classList.add("on");clearTimeout(toast._t);toast._t=setTimeout(function(){x.classList.remove("on")},1800)}
+function hoyBogota(){return new Date().toLocaleDateString("en-CA",{timeZone:"America/Bogota"})}
+function corta(s){var p=s.split("-");return +p[2]+" "+MESES[+p[1]-1]}
+function larga(s){var d=new Date(s+"T12:00:00Z");return DIAS_SEM[d.getUTCDay()]+" "+d.getUTCDate()+" de "+MESL[d.getUTCMonth()]}
+function diasHab(desde,hasta){var d=new Date(desde+"T12:00:00Z"),h=new Date(hasta+"T12:00:00Z"),n=0;while(d<h){d.setUTCDate(d.getUTCDate()+1);if(d.getUTCDay()!==0)n++}return n}
+function nivel(d){return d<=2?["g","A tiempo"]:d<=4?["y","Moderado"]:d<=7?["o","Atrasado"]:["r","Muy atrasado"]}
+(function(){var l=larga(hoyBogota());$("fecha").textContent=l.charAt(0).toUpperCase()+l.slice(1)})();
+window.addEventListener("scroll",function(){document.body.classList.toggle("scrolled",window.scrollY>60)},{passive:true});
+function cargando(t){st.textContent="";st.appendChild(el("span",{class:"spin"}));st.appendChild(document.createTextNode(t))}
+function banner(ic,cls,t){return el("div",{class:"banner"},[el("span",{class:"ic "+cls,text:ic}),el("div",{text:t})])}
+
+async function traer(){
+  if(!CLAVE) throw new Error("clave");
+  cargando("Leyendo Effi…");
+  var ctl=new AbortController(), t=setTimeout(function(){ctl.abort()},60000);
+  try{
+    var r=await fetch(API+"?k="+encodeURIComponent(CLAVE),{cache:"no-store",signal:ctl.signal});
+    var txt=await r.text(), d=null;
+    try{d=JSON.parse(txt)}catch(e){}
+    if(!d||d.ok!==true) throw new Error(r.ok?"clave":"servidor");
+    return d;
+  } finally { clearTimeout(t) }
+}
+
+function construir(d){
+  var hoy=d.hoy||hoyBogota(), map={}, propio=[], cortadas=0, total=0;
+  (d.guias||[]).forEach(function(g){
+    var cont=g.contenido||"", cut=cont.length>=99; if(cut)cortadas++;
+    var fila={guia:g.guia,transp:g.transp,fecha:g.fecha,dias:diasHab(g.fecha,hoy),prod:cont+(cut?" … (lista cortada, ver guía)":""),aprob:g.por_aprobar?"Por aprobar":"",ciudad:g.ciudad||"",doc:g.documento||""};
+    total++;
+    if(g.proveedor)(map[g.proveedor]=map[g.proveedor]||[]).push(fila);else propio.push(fila);
+  });
+  var grupos=Object.keys(map).map(function(n){var f=map[n].sort(function(a,b){return b.dias-a.dias});return {nombre:n,filas:f,max:f[0].dias,antiguo:f[0].fecha,porAprobar:f.filter(function(x){return x.aprob==="Por aprobar"}).length}}).sort(function(a,b){return b.max-a.max||b.filas.length-a.filas.length});
+  propio.sort(function(a,b){return b.dias-a.dias});
+  state={grupos:grupos,hoy:hoy,generado:d.generado||"",total:total,cortadas:cortadas,propio:propio,recogidas:d.recogidas||[],interHoy:!!d.inter_revisado_hoy};
+}
+
+function plantillaActual(){var t=$("tpl");return t?t.value:PLANTILLA}
+function mensaje(g){
+  var t=plantillaActual().replace(/\{proveedor\}/g,g.nombre).replace(/\{n\}/g,g.filas.length).replace(/\{antiguo\}/g,corta(g.antiguo)).replace(/\{dias\}/g,g.max);
+  if(g.filas.length===1)t=t.replace("1 guías pendientes","1 guía pendiente");
+  if(g.porAprobar)t+="\nOjo: "+g.porAprobar+" aparecen «Por aprobar» en Effi; por favor apruébalas para poder despacharlas.";
+  return t;
+}
+
+// Excel
+function hojaProveedor(g,interno){
+  var aoa=[];
+  if(interno){aoa.push(["MENSAJE PARA ENVIAR (copiar y pegar en WhatsApp)"]);mensaje(g).split("\n").forEach(function(l){aoa.push([l])});aoa.push([]);aoa.push(["El archivo para el proveedor sale del botón «Descargar archivo» de la app (solo trae este proveedor)."]);aoa.push([])}
+  else{aoa.push(["Pedidos pendientes de despacho — "+g.nombre]);aoa.push(["Fecha de corte: "+state.hoy]);aoa.push([])}
+  aoa.push(["Guía","Transportadora","Fecha del pedido","Días de espera","Productos","Aprobación"]);
+  g.filas.forEach(function(f){aoa.push([f.guia,f.transp,f.fecha,f.dias,f.prod,f.aprob])});
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"]=[{wch:16},{wch:20},{wch:15},{wch:14},{wch:72},{wch:14}];
+  return ws;
+}
+function nombreHoja(n,usados){var b=n.replace(/[\\\/\?\*\[\]:]/g," ").trim().slice(0,28)||"Hoja",x=b,i=2;while(usados[x.toLowerCase()])x=b.slice(0,26)+" "+i++;usados[x.toLowerCase()]=1;return x}
+function guardar(wb,nombre){
+  try{
+    var buf=XLSX.write(wb,{type:"array",bookType:"xlsx"});
+    var blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    var file=null; try{file=new File([blob],nombre,{type:blob.type})}catch(e){}
+    // En celular se ofrece compartir (WhatsApp, Archivos); si no, se descarga.
+    if(file&&navigator.canShare&&navigator.canShare({files:[file]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){
+      navigator.share({files:[file],title:nombre}).catch(function(){});return;
+    }
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=nombre;document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1500);toast("Archivo descargado");
+  }catch(e){toast("No se pudo crear el archivo")}
+}
+function bajarProveedor(g){var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,hojaProveedor(g,false),"Pendientes");guardar(wb,"Pendientes "+g.nombre.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ.&-]/g,"").trim()+" "+state.hoy+".xlsx")}
+function bajarLibro(){
+  var wb=XLSX.utils.book_new(),u={};
+  var res=[["Proveedor","Guías pendientes","Días del más atrasado","Por aprobar en Effi"]];
+  state.grupos.forEach(function(g){res.push([g.nombre,g.filas.length,g.max,g.porAprobar])});
+  res.push(["Inventario propio",state.propio.length,state.propio.length?state.propio[0].dias:0,""]);
+  var wr=XLSX.utils.aoa_to_sheet(res);wr["!cols"]=[{wch:36},{wch:16},{wch:22},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,wr,nombreHoja("Resumen",u));
+  state.grupos.forEach(function(g){XLSX.utils.book_append_sheet(wb,hojaProveedor(g,true),nombreHoja(g.nombre,u))});
+  if(state.propio.length){
+    var a=[["Guía","Transportadora","Fecha","Días","Ciudad","Productos","Documento"]];
+    state.propio.forEach(function(f){a.push([f.guia,f.transp,f.fecha,f.dias,f.ciudad,f.prod,f.doc])});
+    var wp=XLSX.utils.aoa_to_sheet(a);wp["!cols"]=[{wch:16},{wch:20},{wch:12},{wch:8},{wch:18},{wch:64},{wch:12}];
+    XLSX.utils.book_append_sheet(wb,wp,nombreHoja("Inventario propio",u));
+  }
+  guardar(wb,"Despachos "+state.hoy+" (uso interno).xlsx");
+}
+async function copiar(g,ta){
+  ta.value=mensaje(g);
+  try{await navigator.clipboard.writeText(ta.value);toast("Mensaje copiado")}
+  catch(e){ta.focus();ta.select();try{document.execCommand("copy");toast("Mensaje copiado")}catch(x){toast("Selecciona y copia el mensaje")}}
+}
+
+function filasGuias(filas){
+  var box=el("div",{class:"rows"});
+  filas.forEach(function(f){
+    box.appendChild(el("div",{class:"r"},[
+      el("div",{class:"r-top"},[el("span",{class:"g num",text:f.guia}),el("span",{class:"d",text:f.transp+" · "+f.dias+" d"})]),
+      el("div",{class:"r-p"},[f.prod,f.aprob==="Por aprobar"?el("span",{class:"flag",text:" · por aprobar"}):null])
+    ]));
+  });
+  return box;
+}
+
+function pintar(){
+  out.textContent="";
+  var s=state, atras=s.grupos.filter(function(g){return g.max>=5}).length;
+  out.appendChild(el("div",{class:"tiles"},[
+    el("div",{class:"tile"},[el("b",{class:"num",text:String(s.total)}),el("span",{text:"Guías pendientes"})]),
+    el("div",{class:"tile"},[el("b",{class:"num",text:String(s.grupos.length)}),el("span",{text:"Proveedores"})]),
+    el("div",{class:"tile"+(atras?" hot":"")},[el("b",{class:"num",text:String(atras)}),el("span",{text:"Con 5+ días"})])
+  ]));
+  if(s.recogidas.length)out.appendChild(banner("✓","ic-g",s.recogidas.length+(s.recogidas.length===1?" guía de Inter salió":" guías de Inter salieron")+" de la lista: Effi las muestra pendientes, pero Inter ya las recibió."));
+  else if(!s.interHoy)out.appendChild(banner("i","ic-b","Hoy no hay revisión de Inter: las guías de Inter se muestran como dice Effi y puede haber falsos pendientes."));
+  if(s.cortadas)out.appendChild(banner("!","ic-o",s.cortadas+" guías traen la lista de productos cortada por Effi (marcadas con «…»). Revísalas antes de enviar."));
+  if(!s.grupos.length&&!s.propio.length){out.appendChild(el("div",{class:"empty",text:"No hay guías pendientes. Todo salió."}));return}
+
+  if(s.grupos.length){
+    out.appendChild(el("div",{class:"sh",text:"Proveedores"}));
+    var grp=el("div",{class:"group"});
+    s.grupos.forEach(function(g){
+      var nv=nivel(g.max);
+      var ta=el("textarea",{"aria-label":"Mensaje para "+g.nombre});ta.value=mensaje(g);
+      var b1=el("button",{class:"b-fill",text:"Descargar archivo"}),b2=el("button",{class:"b-tint",text:"Copiar mensaje"});
+      b1.onclick=function(){bajarProveedor(g)};b2.onclick=function(){copiar(g,ta)};
+      var it=el("details",{class:"item"},[
+        el("summary",null,[
+          el("span",{class:"dot d-"+nv[0]}),
+          el("div",{class:"grow"},[el("div",{class:"name",text:g.nombre}),el("div",{class:"sub",text:g.filas.length+(g.filas.length===1?" guía":" guías")+" · desde el "+corta(g.antiguo)+(g.porAprobar?" · "+g.porAprobar+" por aprobar":"")})]),
+          el("span",{class:"pill num p-"+nv[0],text:g.max+" d"}),
+          el("span",{class:"chev"})
+        ]),
+        el("div",{class:"body"},[el("div",{class:"actions"},[b1,b2]),el("p",{class:"msglbl",text:"Mensaje para WhatsApp"}),ta,filasGuias(g.filas)])
+      ]);
+      it.addEventListener("toggle",function(){if(it.open)ta.value=mensaje(g)});
+      grp.appendChild(it);
+    });
+    out.appendChild(grp);
+    out.appendChild(el("p",{class:"sf",text:"Cada proveedor recibe solo su archivo: guía, transportadora, fecha y productos. Sin datos de clientes ni de otros proveedores. Días hábiles, sin domingos."}));
+  }
+  if(s.propio.length){
+    out.appendChild(el("div",{class:"sh",text:"Bodega propia"}));
+    var nvp=nivel(s.propio[0].dias);
+    out.appendChild(el("div",{class:"group"},[el("details",{class:"item"},[
+      el("summary",null,[el("span",{class:"dot d-n"}),el("div",{class:"grow"},[el("div",{class:"name",text:"Inventario propio"}),el("div",{class:"sub",text:s.propio.length+(s.propio.length===1?" guía":" guías")+" · sin proveedor a quién escribir"})]),el("span",{class:"pill num p-"+nvp[0],text:s.propio[0].dias+" d"}),el("span",{class:"chev"})]),
+      el("div",{class:"body"},[filasGuias(s.propio)])
+    ])]));
+  }
+  out.appendChild(el("div",{class:"sh",text:"Uso interno"}));
+  var bl=el("button",{class:"b-text",text:"Descargar"});bl.onclick=bajarLibro;
+  var tp=el("textarea",{id:"tpl","aria-label":"Mensaje base"});tp.value=PLANTILLA;
+  out.appendChild(el("div",{class:"group"},[
+    el("div",{class:"cell"},[el("div",{class:"grow"},[el("div",{text:"Libro completo"}),el("div",{class:"sub",text:"Todos los proveedores en un solo Excel"})]),bl]),
+    el("details",{class:"item"},[el("summary",null,[el("div",{class:"grow"},[el("div",{text:"Mensaje base"}),el("div",{class:"sub",text:"Usa {proveedor}, {n}, {antiguo} y {dias}"})]),el("span",{class:"chev"})]),el("div",{class:"body",style:"padding-left:16px"},[tp])])
+  ]));
+  out.appendChild(el("p",{class:"sf",text:"El libro completo no se le manda a ningún proveedor."}));
+  st.textContent="Datos de Effi de las "+(s.generado.slice(11)||"—");
+}
+
+async function correr(){
+  go.disabled=true;go2.disabled=true;out.textContent="";
+  try{var d=await traer();construir(d);pintar();go.hidden=true;go2.hidden=false}
+  catch(e){
+    st.textContent="";
+    var m=e&&e.message;
+    out.appendChild(banner("!","ic-r",
+      m==="clave"?"Este enlace no tiene la clave correcta. Pide el enlace completo de la app de despachos.":
+      m==="servidor"?"El servidor no respondió bien. Intenta de nuevo en un momento.":
+      e&&e.name==="AbortError"?"Effi se demoró demasiado. Intenta de nuevo.":
+      "No hay conexión con el servidor. Revisa el internet e intenta de nuevo."));
+  }
+  go.disabled=false;go2.disabled=false;
+}
+go.onclick=correr;go2.onclick=correr;
+if(!CLAVE){out.appendChild(banner("!","ic-r","Este enlace no tiene la clave. Pide el enlace completo de la app de despachos."));go.disabled=true}
+})();
+
+</script>
+</body>
+</html>

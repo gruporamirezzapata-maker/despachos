@@ -78,6 +78,9 @@ textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
 .g-top b{font-weight:600;font-variant-numeric:tabular-nums}
 .g-top span{color:var(--ink2);white-space:nowrap}
 .g p{margin:2px 0 0;color:var(--ink2)}
+.g .g-dest{color:var(--ink);font-weight:500}
+.g.late{background:#FFF1F1}
+.hint{color:var(--ink2);font-size:13px;margin:8px 0 0}
 .tag{font-weight:600}.t-warn{color:var(--warn)}.t-bad{color:var(--bad)}
 .legal{color:var(--ink2);font-size:13px;margin:22px 0 0}
 .legal b{color:var(--ink);font-weight:600}
@@ -125,7 +128,7 @@ svg.ch{display:block;width:100%;height:auto;overflow:visible}
     <button class="btn primary wide rise" id="go">Traer despachos pendientes</button>
     <div id="status"></div>
     <div id="out"></div>
-    <p class="legal rise">Cada proveedor recibe solo su archivo, con la <b>política de 48 horas</b> del convenio de despacho.</p>
+    <p class="legal rise">En rojo: guías que pasaron la <b>política de 48 horas</b> del convenio de despacho.</p>
   </section>
 
   <section class="panel right" aria-label="Resumen">
@@ -145,17 +148,22 @@ svg.ch{display:block;width:100%;height:auto;overflow:visible}
     </div>
     <div class="hero">
       <h2 class="rise2">Un solo lugar para cada despacho,<br>cada proveedor y cada guía</h2>
-      <p class="rise2">Effi y la revisión de Inter cruzados en el momento — un archivo limpio y un mensaje listo para cada proveedor, sin datos de clientes.</p>
+      <p class="rise2">El reporte de despachos de siempre, sin descargar nada de Effi — con la revisión de Inter cruzada y la imagen lista para cada proveedor.</p>
     </div>
   </section>
 </main>
 <div class="toast" id="toast"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script>
 (function(){
 var API="https://sebas777.app.n8n.cloud/webhook/despachos-datos";
 var NO_ACEPTAN=["CREACIONES DE CIELO SAS"]; // despachan sin aceptar en Effi: su estado no dice nada
+var PROPIO="Inventario propio";
 var PLANTILLA="Hola {proveedor}, buen día.\nTenemos {n} guías pendientes por despachar. La más antigua es del {antiguo} ({dias} días).\nTe envío la lista con guía, transportadora y productos.\nPor favor confírmame cuáles salen hoy y si alguna no la puedes surtir.\nGracias.";
+var COLS_GEN=["Nivel de Riesgo","Días de Retraso","Proveedor","Transportadora","Tipo de Envío","Número de Guía","Estado Actual","Fecha de Creación","Destinatario","Artículos a Despachar"];
+var W_GEN=[18,15,26,20,18,20,16,18,30,90];
+var COLS_PROV=["Días de Retraso","Proveedor","Transportadora","Tipo de Envío","Número de Guía","Fecha de Creación","Destinatario","Artículos a Despachar"];
+var W_PROV=[15,26,20,16,18,17,30,95];
 var $=function(i){return document.getElementById(i)};
 var st=$("status"), out=$("out"), go=$("go");
 var state=null;
@@ -178,9 +186,12 @@ function hoyBogota(){return new Date().toLocaleDateString("en-CA",{timeZone:"Ame
 function corta(s){var p=s.split("-");return +p[2]+" "+MESES[+p[1]-1]}
 function larga(s){var d=new Date(s+"T12:00:00Z");return DIAS_SEM[d.getUTCDay()]+" "+d.getUTCDate()+" de "+MESL[d.getUTCMonth()]}
 function sumDias(s,n){var d=new Date(s+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
-function diasHab(desde,hasta){var d=new Date(desde+"T12:00:00Z"),h=new Date(hasta+"T12:00:00Z"),n=0;while(d<h){d.setUTCDate(d.getUTCDate()+1);if(d.getUTCDay()!==0)n++}return n}
-function nivel(d){return d<=2?"ok":d<=4?"warn":"bad"}
-(function(){var l=larga(hoyBogota());$("fecha").textContent=l.charAt(0).toUpperCase()+l.slice(1)+" · proveedores al día, sin datos de clientes."})();
+function diasCal(desde,hasta){return Math.max(0,Math.round((new Date(hasta+"T12:00:00Z")-new Date(desde+"T12:00:00Z"))/864e5))}
+// Mismos niveles del reporte de antes
+function riesgo(d){return d<=2?"A Tiempo":d===3?"Riesgo Moderado":d<=7?"Riesgo Alto":"Riesgo Muy Alto"}
+function nivel(d){return d<=2?"ok":d===3?"warn":"bad"}
+function limpio(s){return String(s||"").replace(/\s+/g," ").trim()}
+(function(){var l=larga(hoyBogota());$("fecha").textContent=l.charAt(0).toUpperCase()+l.slice(1)+" · el reporte de despachos de siempre, sin descargar nada de Effi."})();
 function cargando(t){st.textContent="";st.appendChild(el("span",{class:"spin"}));st.appendChild(document.createTextNode(t))}
 function note(cls,t){return el("div",{class:"note"},[el("i",{class:cls}),el("div",{text:t})])}
 
@@ -198,7 +209,7 @@ function entrada(){
 function aparecer(nodes){if(reduce||!document.body.animate)return;nodes.forEach(function(e,i){e.animate([{opacity:0,transform:"translateY(10px)"},{opacity:1,transform:"none"}],{duration:380,delay:Math.min(i,12)*40,easing:"ease-out",fill:"backwards"})})}
 
 /* ---------- gráficos ---------- */
-function serie(){ // guías pendientes por día de creación, últimos 10 días
+function serie(){
   var hoy=state?state.hoy:hoyBogota(), dias=[];
   for(var i=9;i>=0;i--)dias.push(sumDias(hoy,-i));
   var tot={},ven={};
@@ -210,7 +221,6 @@ function dibujar(){
   var s=serie(), A=$("chA"), B=$("chB");
   A.textContent="";B.textContent="";
   var max=Math.max(4,Math.max.apply(null,s.a));
-  // tarjeta A: línea + dos puntos + tooltip con el día de hoy
   var w=300,h=92,px=function(i){return 8+i*(w-16)/9},py=function(v){return h-10-(v/max)*(h-30)};
   var pts=s.a.map(function(v,i){return[px(i),py(v)]});
   var g=sv("linearGradient",{id:"ga",x1:0,y1:0,x2:0,y2:1});g.appendChild(sv("stop",{offset:0,"stop-color":"#4B6FE6","stop-opacity":.22}));g.appendChild(sv("stop",{offset:1,"stop-color":"#4B6FE6","stop-opacity":0}));
@@ -222,7 +232,6 @@ function dibujar(){
   if(state){var tx=Math.min(pts[9][0]-4,w-60),ty=Math.max(pts[9][1]-30,0);
     A.appendChild(sv("rect",{x:tx-36,y:ty,width:64,height:20,rx:5,fill:"#fff",stroke:"#D6E0EE"}));
     A.appendChild(sv("text",{x:tx-4,y:ty+13.5,"text-anchor":"middle",class:"tip"},s.a[9]+" hoy"));}
-  // tarjeta B: ejes, línea sólida (total) y punteada (>48 h), marcador en la más antigua
   var W=440,H=150,L=34,R=8,T=10,Bm=22,maxB=Math.max(4,Math.max.apply(null,s.a));
   var X=function(i){return L+i*(W-L-R)/9},Y=function(v){return T+(H-T-Bm)*(1-v/maxB)};
   for(var k=0;k<=3;k++){var v=Math.round(maxB*k/3),y=Y(v);B.appendChild(sv("line",{x1:L,x2:W-R,y1:y,y2:y,stroke:"#E3EAF5"}));B.appendChild(sv("text",{x:L-6,y:y+3,"text-anchor":"end",class:"ax"},String(v)))}
@@ -241,7 +250,7 @@ function dibujar(){
 async function traer(){
   if(!CLAVE)throw new Error("clave");
   cargando("Leyendo Effi…");
-  var ctl=new AbortController(),t=setTimeout(function(){ctl.abort()},60000);
+  var ctl=new AbortController(),t=setTimeout(function(){ctl.abort()},90000);
   try{
     var r=await fetch(API+"?k="+encodeURIComponent(CLAVE),{cache:"no-store",signal:ctl.signal});
     var txt=await r.text(),d=null;try{d=JSON.parse(txt)}catch(e){}
@@ -250,66 +259,101 @@ async function traer(){
   }finally{clearTimeout(t)}
 }
 function construir(d){
-  var hoy=d.hoy||hoyBogota(),map={},propio=[],todas=[],cortadas=0;
+  var hoy=d.hoy||hoyBogota(),map={},todas=[],incompletas=0;
   (d.guias||[]).forEach(function(g){
-    var cont=g.contenido||"",cut=cont.length>=99;if(cut)cortadas++;
-    var aplica=g.proveedor&&NO_ACEPTAN.indexOf(g.proveedor)<0;
-    var f={guia:g.guia,transp:g.transp,fecha:g.fecha,dias:diasHab(g.fecha,hoy),horas:g.horas||0,vencida:(g.horas||0)>=48,
-      prod:cont+(cut?" … (lista cortada, ver guía)":""),sinAceptar:!!(aplica&&g.por_aprobar),ciudad:g.ciudad||"",doc:g.documento||""};
+    if(g.articulos_incompletos)incompletas++;
+    var prov=g.proveedor||PROPIO;
+    var dias=typeof g.dias==="number"?g.dias:diasCal(g.fecha,hoy);
+    var f={guia:g.guia,transp:g.transp,fecha:g.fecha,dias:dias,riesgo:riesgo(dias),horas:g.horas||0,vencida:(g.horas||0)>=48,
+      prov:prov,dest:limpio(g.destinatario),tipo:g.tipo_envio||"",estado:g.estado||"Generada",
+      prod:limpio(g.articulos||g.contenido)+(g.articulos_incompletos?" … (lista cortada, ver guía)":""),
+      sinAceptar:!!(g.proveedor&&NO_ACEPTAN.indexOf(g.proveedor)<0&&g.por_aprobar)};
     todas.push(f);
-    if(g.proveedor)(map[g.proveedor]=map[g.proveedor]||[]).push(f);else propio.push(f);
+    (map[prov]=map[prov]||[]).push(f);
   });
+  todas.sort(function(a,b){return b.dias-a.dias||a.prov.localeCompare(b.prov)});
   var grupos=Object.keys(map).map(function(n){var f=map[n].sort(function(a,b){return b.horas-a.horas});
-    return {nombre:n,filas:f,max:f[0].dias,antiguo:f[0].fecha,vencidas:f.filter(function(x){return x.vencida}).length,sinAceptar:f.filter(function(x){return x.sinAceptar}).length}})
-    .sort(function(a,b){return b.vencidas-a.vencidas||b.max-a.max});
-  propio.sort(function(a,b){return b.horas-a.horas});
-  state={grupos:grupos,hoy:hoy,generado:d.generado||"",total:todas.length,todas:todas,cortadas:cortadas,propio:propio,recogidas:d.recogidas||[],interHoy:!!d.inter_revisado_hoy};
+    return {nombre:n,propio:n===PROPIO,filas:f,max:f[0].dias,antiguo:f[0].fecha,vencidas:f.filter(function(x){return x.vencida}).length,sinAceptar:f.filter(function(x){return x.sinAceptar}).length}})
+    .sort(function(a,b){return (a.propio-b.propio)||(b.vencidas-a.vencidas)||(b.max-a.max)});
+  state={grupos:grupos,hoy:hoy,generado:d.generado||"",total:todas.length,todas:todas,incompletas:incompletas,recogidas:d.recogidas||[],interHoy:!!d.inter_revisado_hoy};
 }
 function plantillaActual(){var t=$("tpl");return t?t.value:PLANTILLA}
 function mensaje(g){
   var t=plantillaActual().replace(/\{proveedor\}/g,g.nombre).replace(/\{n\}/g,g.filas.length).replace(/\{antiguo\}/g,corta(g.antiguo)).replace(/\{dias\}/g,g.max);
   if(g.filas.length===1)t=t.replace("1 guías pendientes","1 guía pendiente");
-  if(g.vencidas)t+="\n"+(g.vencidas===1?"Ojo: 1 de estas guías ya pasó":"Ojo: "+g.vencidas+" de estas guías ya pasaron")+" las 48 horas de despacho del convenio (marcadas en el archivo).";
+  if(g.vencidas)t+="\n"+(g.vencidas===1?"Ojo: 1 de estas guías ya pasó":"Ojo: "+g.vencidas+" de estas guías ya pasaron")+" las 48 horas de despacho del convenio (en rojo).";
   return t;
 }
 
-/* ---------- Excel ---------- */
-function hojaProveedor(g,interno){
-  var aoa=[];
-  if(interno){aoa.push(["MENSAJE PARA ENVIAR (copiar y pegar en WhatsApp)"]);mensaje(g).split("\n").forEach(function(l){aoa.push([l])});aoa.push([]);aoa.push(["El archivo para el proveedor sale del botón «Descargar archivo» de la app (solo trae este proveedor)."]);aoa.push([])}
-  else{aoa.push(["Pedidos pendientes de despacho — "+g.nombre]);aoa.push(["Fecha de corte: "+state.hoy]);aoa.push([])}
-  aoa.push(["Guía","Transportadora","Fecha del pedido","Días de espera","Pasó 48 h","Productos"].concat(interno?["Aceptada en Effi"]:[]));
-  g.filas.forEach(function(f){aoa.push([f.guia,f.transp,f.fecha,f.dias,f.vencida?"Sí":"No",f.prod].concat(interno?[NO_ACEPTAN.indexOf(g.nombre)>=0?"No aplica":(f.sinAceptar?"No":"Sí")]:[]))});
+/* ---------- Excel (mismo formato del reporte de antes) ---------- */
+var BORDE={style:"thin",color:{rgb:"D6E0EE"}};
+var S_HEAD={font:{bold:true,color:{rgb:"13265E"},name:"Calibri",sz:12},fill:{fgColor:{rgb:"E7ECFD"}},alignment:{vertical:"center"},border:{bottom:{style:"thin",color:{rgb:"9DB2F2"}}}};
+var S_CELL={font:{name:"Calibri",sz:12,color:{rgb:"13265E"}},alignment:{vertical:"center"},border:{bottom:BORDE}};
+var S_RED={font:{name:"Calibri",sz:12,color:{rgb:"1A1A1A"}},fill:{fgColor:{rgb:"FF0000"}},alignment:{vertical:"center"},border:{bottom:{style:"thin",color:{rgb:"FFFFFF"}}}};
+function hoja(cols,widths,filas,valores){
+  var aoa=[cols].concat(filas.map(valores));
   var ws=XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"]=[{wch:16},{wch:20},{wch:15},{wch:13},{wch:10},{wch:72},{wch:16}];
+  ws["!cols"]=widths.map(function(w){return{wch:w}});
+  ws["!autofilter"]={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:aoa.length-1,c:cols.length-1}})};
+  ws["!freeze"]={xSplit:0,ySplit:1};ws["!views"]=[{state:"frozen",ySplit:1}];
+  for(var r=0;r<aoa.length;r++)for(var c=0;c<cols.length;c++){
+    var ref=XLSX.utils.encode_cell({r:r,c:c});if(!ws[ref])ws[ref]={t:"s",v:""};
+    ws[ref].s=r===0?S_HEAD:(filas[r-1].vencida?S_RED:S_CELL);
+  }
   return ws;
 }
+function filaGen(f){return[f.riesgo,f.dias,f.prov,f.transp,f.tipo,f.guia,f.estado,f.fecha,f.dest,f.prod]}
+function filaProv(f){return[f.dias,f.prov,f.transp,f.tipo,f.guia,f.fecha,f.dest,f.prod]}
 function nombreHoja(n,u){var b=n.replace(/[\\\/\?\*\[\]:]/g," ").trim().slice(0,28)||"Hoja",x=b,i=2;while(u[x.toLowerCase()])x=b.slice(0,26)+" "+i++;u[x.toLowerCase()]=1;return x}
-function guardar(wb,nombre){
-  try{
-    var blob=new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
-    var file=null;try{file=new File([blob],nombre,{type:blob.type})}catch(e){}
-    if(file&&navigator.canShare&&navigator.canShare({files:[file]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){navigator.share({files:[file],title:nombre}).catch(function(){});return}
-    var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=nombre;document.body.appendChild(a);a.click();
-    setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1500);toast("Archivo descargado");
-  }catch(e){toast("No se pudo crear el archivo")}
+function compartirOBajar(blob,nombre,msg){
+  var file=null;try{file=new File([blob],nombre,{type:blob.type})}catch(e){}
+  if(file&&navigator.canShare&&navigator.canShare({files:[file]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){navigator.share({files:[file],title:nombre}).catch(function(){});return}
+  var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=nombre;document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1500);toast(msg||"Archivo descargado");
 }
-function bajarProveedor(g){var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,hojaProveedor(g,false),"Pendientes");guardar(wb,"Pendientes "+g.nombre.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ.&-]/g,"").trim()+" "+state.hoy+".xlsx")}
+function guardar(wb,nombre){
+  try{compartirOBajar(new Blob([XLSX.write(wb,{type:"array",bookType:"xlsx",cellStyles:true})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),nombre)}
+  catch(e){toast("No se pudo crear el archivo")}
+}
+function limpiarNombre(n){return n.replace(/[^\w\sáéíóúñÁÉÍÓÚÑ.&-]/g,"").trim()}
+function bajarProveedor(g){var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,hoja(COLS_PROV,W_PROV,g.filas,filaProv),"Pendientes");guardar(wb,"Despachos "+limpiarNombre(g.nombre)+" "+state.hoy+".xlsx")}
 function bajarLibro(){
   var wb=XLSX.utils.book_new(),u={};
-  var res=[["Proveedor","Guías pendientes","Pasaron 48 h","Días del más atrasado","Sin aceptar en Effi"]];
-  state.grupos.forEach(function(g){res.push([g.nombre,g.filas.length,g.vencidas,g.max,NO_ACEPTAN.indexOf(g.nombre)>=0?"No aplica":g.sinAceptar])});
-  res.push(["Inventario propio",state.propio.length,state.propio.filter(function(f){return f.vencida}).length,state.propio.length?state.propio[0].dias:0,""]);
-  var wr=XLSX.utils.aoa_to_sheet(res);wr["!cols"]=[{wch:34},{wch:16},{wch:13},{wch:20},{wch:18}];
-  XLSX.utils.book_append_sheet(wb,wr,nombreHoja("Resumen",u));
-  state.grupos.forEach(function(g){XLSX.utils.book_append_sheet(wb,hojaProveedor(g,true),nombreHoja(g.nombre,u))});
-  if(state.propio.length){
-    var a=[["Guía","Transportadora","Fecha","Días","Pasó 48 h","Ciudad","Productos","Documento"]];
-    state.propio.forEach(function(f){a.push([f.guia,f.transp,f.fecha,f.dias,f.vencida?"Sí":"No",f.ciudad,f.prod,f.doc])});
-    var wp=XLSX.utils.aoa_to_sheet(a);wp["!cols"]=[{wch:16},{wch:20},{wch:12},{wch:7},{wch:10},{wch:18},{wch:64},{wch:12}];
-    XLSX.utils.book_append_sheet(wb,wp,nombreHoja("Inventario propio",u));
-  }
-  guardar(wb,"Despachos "+state.hoy+" (uso interno).xlsx");
+  XLSX.utils.book_append_sheet(wb,hoja(COLS_GEN,W_GEN,state.todas,filaGen),nombreHoja("Guías Pendientes",u));
+  state.grupos.forEach(function(g){XLSX.utils.book_append_sheet(wb,hoja(COLS_PROV,W_PROV,g.filas,filaProv),nombreHoja(g.nombre,u))});
+  guardar(wb,"GRUPO_RZ_Reporte_Despachos_General_"+state.hoy+".xlsx");
+}
+
+/* ---------- Imagen tipo pantallazo para WhatsApp ---------- */
+function imagen(g){
+  var cols=["Días","Transportadora","Tipo de Envío","Número de Guía","Fecha","Destinatario","Artículos a Despachar"];
+  var wcol=[64,170,150,150,108,230,700], pad=10, fs=17, lh=23, scale=2;
+  var W=wcol.reduce(function(a,b){return a+b},0)+2*24;
+  var cv=document.createElement("canvas"),ctx=cv.getContext("2d");
+  var font=function(w){return w+" "+fs+"px Urbanist, Calibri, Arial, sans-serif"};
+  ctx.font=font("400");
+  function wrap(t,max){var words=String(t).split(" "),lines=[],cur="";words.forEach(function(w){var test=cur?cur+" "+w:w;if(ctx.measureText(test).width>max&&cur){lines.push(cur);cur=w}else cur=test});if(cur)lines.push(cur);return lines.length?lines:[""]}
+  var rows=g.filas.map(function(f){var vals=[String(f.dias),f.transp,f.tipo,f.guia,f.fecha,f.dest,f.prod];
+    var cells=vals.map(function(v,i){return wrap(v,wcol[i]-2*pad)});var n=Math.max.apply(null,cells.map(function(c){return c.length}));return{f:f,cells:cells,h:n*lh+2*pad-4}});
+  var head=86, th=40, H=head+th+rows.reduce(function(a,r){return a+r.h},0)+40;
+  cv.width=W*scale;cv.height=H*scale;ctx.scale(scale,scale);
+  ctx.fillStyle="#F8FAFD";ctx.fillRect(0,0,W,H);
+  ctx.fillStyle="#13265E";ctx.font="600 26px Urbanist, Calibri, Arial, sans-serif";ctx.fillText(g.nombre,24,40);
+  ctx.fillStyle="#5B6B8C";ctx.font="400 16px Urbanist, Calibri, Arial, sans-serif";
+  ctx.fillText(g.filas.length+(g.filas.length===1?" guía pendiente":" guías pendientes")+" · corte "+corta(state.hoy)+(g.vencidas?" · en rojo: "+g.vencidas+" pasaron 48 h":""),24,66);
+  var x0=24,y=head;
+  ctx.fillStyle="#E7ECFD";ctx.fillRect(x0,y,W-48,th);
+  ctx.fillStyle="#13265E";ctx.font=font("600");var x=x0;
+  cols.forEach(function(c,i){ctx.fillText(c,x+pad,y+26);x+=wcol[i]});
+  y+=th;
+  rows.forEach(function(r){
+    ctx.fillStyle=r.f.vencida?"#FF0000":"#FFFFFF";ctx.fillRect(x0,y,W-48,r.h);
+    ctx.fillStyle=r.f.vencida?"#FFFFFF":"#E7EDF6";ctx.fillRect(x0,y+r.h-1,W-48,1);
+    ctx.fillStyle=r.f.vencida?"#1A1A1A":"#13265E";ctx.font=font("400");
+    var xx=x0;r.cells.forEach(function(lines,i){lines.forEach(function(l,k){ctx.fillText(l,xx+pad,y+pad+16+k*lh)});xx+=wcol[i]});
+    y+=r.h;
+  });
+  cv.toBlob(function(b){if(b)compartirOBajar(b,"Despachos "+limpiarNombre(g.nombre)+" "+state.hoy+".png","Imagen descargada")},"image/png");
 }
 async function copiar(g,ta){
   ta.value=mensaje(g);
@@ -321,8 +365,9 @@ async function copiar(g,ta){
 function listaGuias(filas){
   var box=el("div",{class:"gl"});
   filas.forEach(function(f){
-    box.appendChild(el("div",{class:"g"},[
+    box.appendChild(el("div",{class:"g"+(f.vencida?" late":"")},[
       el("div",{class:"g-top"},[el("b",{text:f.guia}),el("span",{text:f.transp+" · "+f.dias+" d"})]),
+      el("p",{class:"g-dest",text:f.dest+" · "+f.tipo}),
       el("p",null,[f.prod,f.vencida?el("span",{class:"tag t-bad",text:" · pasó 48 h"}):null,f.sinAceptar?el("span",{class:"tag t-warn",text:" · sin aceptar"}):null])
     ]));
   });
@@ -332,47 +377,38 @@ function pintar(){
   out.textContent="";
   var s=state,ven=s.todas.filter(function(f){return f.vencida}).length,nodes=[];
   $("kTotal").textContent=String(s.total);
-  $("kSub").textContent=s.grupos.length+" proveedores · "+ven+" pasaron 48 h";
+  $("kSub").textContent=(s.grupos.filter(function(g){return!g.propio}).length)+" proveedores · "+ven+" pasaron 48 h";
   dibujar();
+  var bl=el("button",{class:"btn primary wide",text:"Descargar reporte general (Excel)"});bl.onclick=bajarLibro;
+  nodes.push(out.appendChild(el("div",{style:"margin-top:14px"},[bl])));
+  nodes.push(out.appendChild(el("p",{class:"hint",text:"Mismo formato de antes: hoja «Guías Pendientes» con todo, y una hoja por proveedor con las atrasadas (más de 48 h) en rojo."})));
   if(s.recogidas.length)nodes.push(out.appendChild(note("i-ok",s.recogidas.length+(s.recogidas.length===1?" guía de Inter salió":" guías de Inter salieron")+" de la lista: Effi las muestra pendientes, pero Inter ya las recibió.")));
   else if(!s.interHoy)nodes.push(out.appendChild(note("i-info","Hoy no hay revisión de Inter: las guías de Inter se muestran como dice Effi y puede haber falsos pendientes.")));
-  if(s.cortadas)nodes.push(out.appendChild(note("i-warn",s.cortadas+" guías traen la lista de productos cortada por Effi (marcadas con «…»). Revísalas antes de enviar.")));
-  if(!s.grupos.length&&!s.propio.length){out.appendChild(el("div",{class:"empty",text:"No hay guías pendientes. Todo salió."}));return}
-  if(s.grupos.length){
-    nodes.push(out.appendChild(el("div",{class:"sec",text:"Proveedores"})));
-    s.grupos.forEach(function(g){
-      var nv=g.vencidas?"bad":nivel(g.max);
-      var ta=el("textarea",{"aria-label":"Mensaje para "+g.nombre});ta.value=mensaje(g);
-      var b1=el("button",{class:"btn primary",text:"Descargar archivo"}),b2=el("button",{class:"btn outline",text:"Copiar mensaje"});
-      b1.onclick=function(){bajarProveedor(g)};b2.onclick=function(){copiar(g,ta)};
-      var sub=g.filas.length+(g.filas.length===1?" guía":" guías")+" · desde el "+corta(g.antiguo);
-      if(g.vencidas)sub+=" · "+g.vencidas+" pasaron 48 h";
-      if(g.sinAceptar)sub+=" · "+g.sinAceptar+" sin aceptar";
-      var it=el("details",{class:"row"},[
-        el("summary",null,[el("span",{class:"dot i-"+(nv==="ok"?"ok":nv==="warn"?"warn":"bad")}),
-          el("div",{class:"grow"},[el("div",{class:"name",text:g.nombre}),el("div",{class:"sub",text:sub})]),
-          el("span",{class:"pill p-"+nv,text:g.max+" d"}),el("span",{class:"chev"})]),
-        el("div",{class:"body"},[el("div",{class:"acts"},[b1,b2]),el("p",{class:"lbl",text:"Mensaje para WhatsApp"}),ta,listaGuias(g.filas)])
-      ]);
-      it.addEventListener("toggle",function(){if(it.open)ta.value=mensaje(g)});
-      nodes.push(out.appendChild(it));
-    });
-  }
-  if(s.propio.length){
-    nodes.push(out.appendChild(el("div",{class:"sec",text:"Bodega propia"})));
-    var vp=s.propio.filter(function(f){return f.vencida}).length;
-    nodes.push(out.appendChild(el("details",{class:"row"},[
-      el("summary",null,[el("span",{class:"dot",style:"background:#93A0BA"}),el("div",{class:"grow"},[el("div",{class:"name",text:"Inventario propio"}),el("div",{class:"sub",text:s.propio.length+(s.propio.length===1?" guía":" guías")+(vp?" · "+vp+" pasaron 48 h":"")+" · sin proveedor a quién escribir"})]),el("span",{class:"pill p-n",text:s.propio[0].dias+" d"}),el("span",{class:"chev"})]),
-      el("div",{class:"body"},[listaGuias(s.propio)])
-    ])));
-  }
-  nodes.push(out.appendChild(el("div",{class:"sec",text:"Uso interno"})));
-  var bl=el("button",{class:"link",text:"Descargar"});bl.onclick=bajarLibro;
+  if(s.incompletas)nodes.push(out.appendChild(note("i-warn",s.incompletas+" guías no se pudieron completar con el detalle de Effi (marcadas con «…»). Revísalas en Effi antes de enviar.")));
+  if(!s.grupos.length){out.appendChild(el("div",{class:"empty",text:"No hay guías pendientes. Todo salió."}));return}
+  nodes.push(out.appendChild(el("div",{class:"sec",text:"Por proveedor"})));
+  s.grupos.forEach(function(g){
+    var nv=g.vencidas?"bad":nivel(g.max);
+    var ta=el("textarea",{"aria-label":"Mensaje para "+g.nombre});ta.value=mensaje(g);
+    var b0=el("button",{class:"btn primary",text:"Imagen para WhatsApp"}),b1=el("button",{class:"btn outline",text:"Excel"}),b2=el("button",{class:"btn outline",text:"Copiar mensaje"});
+    b0.onclick=function(){imagen(g)};b1.onclick=function(){bajarProveedor(g)};b2.onclick=function(){copiar(g,ta)};
+    var sub=g.filas.length+(g.filas.length===1?" guía":" guías")+" · desde el "+corta(g.antiguo);
+    if(g.vencidas)sub+=" · "+g.vencidas+" pasaron 48 h";
+    if(g.sinAceptar)sub+=" · "+g.sinAceptar+" sin aceptar";
+    var it=el("details",{class:"row"},[
+      el("summary",null,[el("span",{class:"dot i-"+(nv==="ok"?"ok":nv==="warn"?"warn":"bad")}),
+        el("div",{class:"grow"},[el("div",{class:"name",text:g.nombre}),el("div",{class:"sub",text:sub})]),
+        el("span",{class:"pill p-"+nv,text:g.max+" d"}),el("span",{class:"chev"})]),
+      el("div",{class:"body"},[el("div",{class:"acts"},g.propio?[b1]:[b0,b1,b2]),g.propio?null:el("p",{class:"lbl",text:"Mensaje para WhatsApp"}),g.propio?null:ta,listaGuias(g.filas)])
+    ]);
+    it.addEventListener("toggle",function(){if(it.open)ta.value=mensaje(g)});
+    nodes.push(out.appendChild(it));
+  });
+  nodes.push(out.appendChild(el("div",{class:"sec",text:"Ajustes"})));
   var tp=el("textarea",{id:"tpl","aria-label":"Mensaje base"});tp.value=PLANTILLA;
-  nodes.push(out.appendChild(el("div",{class:"row"},[el("div",{style:"display:flex;align-items:center;gap:12px;padding:12px 14px"},[el("div",{class:"grow"},[el("div",{class:"name",text:"Libro completo"}),el("div",{class:"sub",text:"Todos los proveedores en un solo Excel · no se le manda a nadie"})]),bl])])));
   nodes.push(out.appendChild(el("details",{class:"row"},[el("summary",null,[el("div",{class:"grow"},[el("div",{class:"name",text:"Mensaje base"}),el("div",{class:"sub",text:"Usa {proveedor}, {n}, {antiguo} y {dias}"})]),el("span",{class:"chev"})]),el("div",{class:"body"},[tp])])));
   aparecer(nodes);
-  st.textContent="Datos de Effi de las "+(s.generado.slice(11)||"—")+" · días hábiles, sin domingos";
+  st.textContent="Datos de Effi de las "+(s.generado.slice(11)||"—")+" · días calendario, como el reporte de antes";
 }
 async function correr(){
   go.disabled=true;out.textContent="";
